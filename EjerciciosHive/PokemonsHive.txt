@@ -1,0 +1,88 @@
+EJERCICIO DATASET POKEMON
+Crear una tabla llamada pokemonStats y carga los datos del csv pokemon.csv.
+Ten en cuenta el formato de las columnas que tiene el CSV para establecer los delimitadores de campo.
+Borra la tabla y créala nuevamente para que la carga de los datos use una expresión regular.
+
+Para añadir los datos, he puesto el .csv con los datos en el directorio de trabajo con hdfs, 
+a través del comando hadoop fs -put /dirección.csv /user/cloudera/hive
+Una vez hecho eso, ya podremos importar el .csv
+
+	CREATE TABLE IF NOT EXISTS pokemonStats (
+	ID INT,
+	NAME STRING,
+	TYPE1 STRING,
+	TYPE2 STRING,
+	TOTAL INT,
+	HP INT,
+	ATTACK INT,
+	DEFENSE INT,
+	SPATK INT,
+	SPDEF INT,
+	SPEED INT,
+	GENERATION INT,
+	LEGENDARY STRING)
+	ROW FORMAT DELIMITED
+	FIELDS TERMINATED BY ','
+	LINES TERMINATED BY '\n'
+	tblproperties("skip.header.line.count"="1");
+
+Crea una nueva tabla a partir de pokemonstats teniendo en cuenta que la mayor parte de las consultas se realizan filtrando por generación de Pokémon.
+
+	Para ver cuantos pokemons había de cada generación en el fichero csv, decidí hacer una query.
+
+	SELECT COUNT(ID) AS NUMPOKEMONS, GENERATION
+	FROM pokemonStats
+	GROUP BY GENERATION;
+
+	El resultado fue que la generación 1 era la que mayor cantidad de pokemons tenía, 
+	por lo que la nueva tabla va a ser filtrada por esta generación. El resto de tablas
+	para las diferentes generaciones sería igual.
+
+	CREATE TABLE IF NOT EXISTS pokemonStats_generation1 AS
+	SELECT NAME, TYPE1, TYPE2, TOTAL, HP, ATTACK, DEFENSE,
+	SPATK, SPDEF, SPEED, LEGENDARY
+	FROM pokemonStats
+	WHERE GENERATION = 1;
+
+	Para el resto de generaciones habria que cambiar el 1 del WHERE por la 	GENERATION  que queramos filtrar (Hay 6).
+
+Crea una nueva tabla a partir de pokemonstats teniendo en cuenta que la mayor parte de las consultas se realizan filtrando por generación de Pokémon, tipoA y tipoB .
+	
+	Para ver el número de pokemons que había de cada tipo he hecho una consulta:
+
+	SELECT COUNT(ID) AS NUMPOKEMONS, TYPE1
+	FROM pokemonStats
+	GROUP BY TYPE1
+	ORDER BY NUMPOKEMONS;
+
+	El resultado fue una mayor cantidad de pokemons de tipo Agua y Normal.
+
+	CREATE TABLE pokemonstats_filtered AS
+	SELECT NAME, TYPE1, TYPE2, TOTAL, HP,
+	ATTACK, DEFENSE, SPATK, SPDEF, SPEED, LEGENDARY
+	FROM pokemonStats
+	WHERE GENERATION = 1 AND TYPE1 ='WATER'
+	AND TYPE2 = 'NORMAL';
+
+¿Qué generación es más poderosa?
+
+	Para ver que generacion es más poderosa he sumado el TOTAL filtrado por generación.
+	
+	SELECT SUM(TOTAL) AS SUMA, GENERATION
+	FROM pokemonStats
+	GROUP BY GENERATION
+	ORDER BY SUMA;
+
+	La generación más poderosa es la 5, con un Total de 71773
+
+¿Qué generacion tiene el mayor número de Pokémon de tipo fuego? ¿Cuántos tiene?
+
+	SELECT COUNT(ID) AS NUMPOKEMONS, GENERATION
+	FROM pokemonStats
+	WHERE TYPE1 = 'FIRE' OR TYPE2 = 'FIRE'
+	GROUP BY GENERATION
+	ORDER BY NUMPOKEMONS;
+
+	La generación 5 tiene mayor cantidad de pokemons de tipo fuego, con un 	total de 16.
+
+
