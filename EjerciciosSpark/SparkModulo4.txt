@@ -1,0 +1,136 @@
+---------------------------------
+TRABAJANDO CON PairRDDs - WEBLOGS
+---------------------------------
+
+1. Usando MapReduce, cuenta el número de peticiones de cada usuario, es decir, las veces que 
+cada usuario aparece en una línea de un log. Para ello 
+
+a) Usa un Map para crear un RDD que contenga el par (ID, 1), siendo la clave el ID y el 
+Value el número 1. Recordad que el campo ID es el tercer elemento de cada línea. Los datos 
+obtenidos tendrían que quedar de la siguiente manera.
+
+var logs=sc.textFile("file:/home/BIT/data/weblogs/*") 
+var rdd = logs.map(line => line.split(' ')).map(words => (words(2),1)) 
+
+b) Usa un Reduce para sumar los valores correspondientes a cada userid. Los datos 
+tendría que mostrarse de la siguiente manera: 
+
+var reg = rdd.reduceByKey((v1,v2) => v1+v2) 
+
+reg.take(10)
+res5: Array[(String, Int)] = Array((79844,4), (16669,2), (99640,68), (118769,24), 
+(33077,36), (85339,12), (34344,8), (20659,10), (28996,8), (30410,84))
+
+2. Muestra los id de usuario y el número de accesos para los 10 usuarios con mayor número 
+de accesos. Para ello: 
+
+a) Utiliza un map() para intercambiar la Clave por el Valor, de forma que quede algo así: 
+(Si no se te ocurre cómo hacerlo, busca en internet) 
+
+var change = reg.map(campo => campo.swap)
+
+change.take(5)
+res6: Array[(Int, String)] = Array((4,79844), (2,16669), (68,99640), (24,118769), 
+(36,33077))
+
+b)Utiliza la función vista en teoría para ordenar un RDD. Ten en cuenta que queremos 
+mostrar los datos en orden descendiente (De mayor a menor número de peticiones). 
+Recuerda que el RDD debe estar en la misma forma que al inicio, es decir, con clave: 
+userid y valor: nº de peticiones. El resultado debe ser:
+
+change.sortedByKey(false).map(field => field.swap).take(10).foreach(println)
+
+3. Crea un RDD donde la clave sea el userid y el valor sea una lista de ips a las que el 
+userid se ha conectado (es decir, agrupar las IPs por userID). Ayúdate de la función 
+groupByKey() para conseguirlo, de manera que el resultado final sea algo así: 
+
+var rddips = logs.map(line => line.split(' ')).map(words => (words(2),words(0))).groupByKey()
+rddips.take(10)
+
+---------------------------
+TRABAJANDO CON ACCOUNTS.CSV 
+---------------------------
+
+1. Abre el fichero accounts.cvs con el editor de texto que prefieras y estudia su contenido. 
+Verás que el primer campo es el id del usuario, que corresponde con el id del usuario de 
+los logs del servidor web. El resto de campos corresponden con fecha, nombre, apellido, 
+dirección, etc. 
+
+2. Haz un JOIN entre los datos de logs del ejercicio pasado y los datos de accounts.csv, 
+de manera que se obtenga un conjunto de datos en el que la clave sea el userid y como 
+valor tenga la información del usuario seguido del número de visitas de cada usuario. Los 
+pasos a ejecutar son: 
+ 
+a) Haz un map() de los datos de accounts.cvs de forma que la Clave sea el userid y el 
+Valor sea toda la línea, incluido el userid. Obtendríamos algo de este tipo 
+
+var acc = sc.textFile("file:/home/BIT/data_spark/accounts.csv")
+var rddacc = acc.map(line => line.split(',')).map(account => (account(0), account))
+
+rddacc.take(2)
+res2: Array[(String, Array[String])] = Array((1,Array(1, 2008-12-31 15:05:45, 
+2013-12-29 09:53:35, Donald, Becton, 2275 Washburn Street, Oakland, CA, 94656, 5104529635, 
+2013-12-27 15:01:36, 2013-12-27 15:01:36)), (2,Array(2, 2008-10-31 01:29:51, \N, Donna, 
+Jones, 3885 Elliott Street, Santa Rosa, CA, 94978, 7072247159, 2013-12-27 15:01:36, 
+2013-12-27 15:01:36)))
+
+b) Haz un JOIN del RDD que acabas de crear con el que creaste en el paso anterior que 
+contenía (userid, nº visitas), de manera que quede algo como esto: 
+
+var accjoin = rddacc.join(reg)
+
+c) Crea un RDD a patrir del RDD anterior, que contenga el userid, número de visitas, 
+nombre y apellido de las 5 primeras líneas, para obtener una estructura como la siguiente:
+
+for (pair <- accjoin.take(10)) {println(pair._1,pair._2._2,pair._2._1(3),pair._2._1(4))}
+
+(34344,8,Michael,Herron)
+(28996,8,Charles,Adamson)
+(104230,6,Kathy,Vanwormer)
+(31208,8,John,Stoddard)
+(100135,6,Robert,Estevez)
+(31572,6,Clifford,Andrews)
+(19497,70,Michael,Oconnell)
+(10054,64,Tom,McKenzie)
+(26875,18,Brittany,Evans)
+(69386,14,Terry,Atkinson)
+
+------------------------------------------
+TRABAJANDO CON MAS MÉTODOS SOBRE PARES RDD
+------------------------------------------
+
+1. Usa keyBy para crear un RDD con los datos de las cuentas, pero con el código postal como clave (noveno campo del fichero accounts.CSV). Puedes buscar información sobre este método en la API online de Spark
+
+var accKeyBy = acc.keyBy(_(8))
+
+2. Crea un RDD de pares con el código postal como la clave y una lista de nombres (Apellido, Nombre) de ese código postal como el valor. Sus lugares son el 5º y el 4º respectivamente.
+
+var accByNames = accKeyBy.mapValues(values => values(4) + ',' + values(3)).groupByKey()
+
+3. Ordena los datos por código postal y luego, para los primeros 5 códigos postales, muestra el código y la lista de nombres cuyas cuentas están en ese código postal. La salida sería parecida a esta:
+
+accByNames.sortByKey().take(10).foreach{case(x,y) => println ("---" + x) ; y.foreach(println)};
+
+//No se obtiene el resultado esperado -> Posible fallo anterior.
+
+---------------------------------
+TRABAJANDO CON RDDs - SHAKESPEARE
+---------------------------------
+
+val logs=sc.textFile("shakespeare/*")
+val logs2=logs.map(line => line.replaceAll("[^a-zA-Z]+"," "))
+val logs3=logs2.flatMap(line => line.split(" "))
+val logs4= logs3.map(word => word.toLowerCase)
+val stopwords =sc.textFile("stop-word-list.csv")
+val stopwords2=stopwords.flatMap(line => line.split(","))
+val stopwords3=stopwords2.map(word => word.replace(" ",""))
+val logs5=logs4.subtract(sc.parallelize(Seq(" ")))
+val logs6=logs5.subtract(stopwords3)
+val logs7=logs6.map(word => (word,1)).reduceByKey(_+_)
+val logs8=logs7.map(word => word.swap).sortByKey(false).map(value.swap)
+Val logs9=logs8.filter(word =>word._1.size !=1)
+Logs9.take(20).foreach(println) 
+
+
+
+
