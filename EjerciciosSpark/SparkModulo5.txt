@@ -1,0 +1,181 @@
+---------------------------
+------SPARKSQL - JSON------
+---------------------------
+
+EL objetivo de este ejercicio es familiarizarnos con el uso de la herramienta SQL de Spark.
+Tareas a realizar:
+
+1. Crea un nuevo contexto SQLContext
+
+var ssc = new org.apache.spark.sql.SQLContext(sc)
+
+2. Importa los implicits que permiten convertir RDDs en DataFrames
+
+import sqlContext.implicits._
+
+3. Carga el dataset “zips.json” que se encuentra en la carpeta de ejercicios de Spark y que 
+contiene datos de códigos postales de Estados Unidos. Puedes usar el comando 
+“ssc.load(“ruta_fichero”, “formato”)”. Tiene este aspecto:
+
+var zips = ssc.load("file:/home/BIT/data_spark/zips.json", "json")
+
+4. Visualiza los datos con el comando “show()”. Tienes que ver una tabla con 5 columnas 
+con un subconjunto de los datos del fichero. Puedes ver que el código postal es “_id”, la 
+ciudad es “city”, la ubicación “loc”, la población “pop” y el estado “state”.
+
+zips.show() //Muestra los 20 primeros estructurados por columnas
+
+5. Obtén las filas cuyos códigos postales cuya población es superior a 10000 usando el api 
+de DataFrames
+
+zips.filter($"pop" > 10000).show(
+zips.filter(zips("pop") > 10000).show()
+zips.filter("pop > 10000").show()
+//Las tres hacen lo mismo
+
+6. Guarda esta tabla en un fichero temporal para poder ejecutar SQL contra ella
+
+zips.registerTempTable("zips")
+
+7. Realiza la misma consulta que en el punto 5, pero esta vez usando SQL
+
+ssc.sql("select * from zips where pop > 10000").show()
+
+8. Usando SQL, obtén la ciudad con más de 100 códigos postales
+
+ssc.sql("select count(_id) as numCP, city from zips group by city having suma > 100 ").show()
+
+9. Usando SQL, obtén la población del estado de Wisconsin (WI)
+
+ssc.sql("select sum(pop) as Poblacion, state from zips where state = 'WI' group by state ").show()
+ssc.sql("select sum(pop) as Poblacion from zips where state='WI'").show()
+//Hacen lo mismo
+
+10. Usando SQL, obtén los 5 estados más poblados
+
+ssc.sql("select sum(pop) as Poblacion, state from zips group by state order by Poblacion desc limit 5").show()
+
+
+---------------------------
+------SPARKSQL - HIVE------
+---------------------------
+El objetivo de este ejercicio es familiarizarnos con el uso de SparkSQL para acceder a tablas en 
+Hive, dado que es una herramienta ampliamente extendida en entornos analíticos.
+Tareas a realizar:
+1. Abrir una terminal y ejecutad este comando: “sudo cp /usr/lib/hive/conf/hive-site.xml 
+/usr/lib/spark/conf/”. Para más información podéis consultar esta web “ 
+https://community.cloudera.com/t5/Advanced-Analytics-Apache-Spark/how-toaccess-the-hive-tables-from-spark-shell/td-p/36609 ”
+2. Reiniciar el Shell de Spark.
+3. En un terminal, arrancar el Shell de Hive y echar un vistazo a las bases de datos y tablas que hay en cada una de ellas.
+4. En otro terminal aparte, arrancar el Shell de Spark, y a través de SparkSQL crear una 
+base de datos y una tabla con dos o tres columnas. Si no creamocon Spark a través de 
+Hive.
+bbdd: hivespark
+tabla: empleados
+columnas: id INT, name STRING, age INT
+config table: FIELDS TERMINATED BY ',' LINES TERMINATED BY '\n'
+
+
+val sqlContext = new org.apache.spark.sql.hive.HiveContext(sc)
+sqlContext.sql("CREATE DATABASE IF NOT EXISTS hivespark")
+sqlContext.sql("CREATE TABLE hivespark.empleados(id INT, name STRING, age INT) ROW FORMAT DELIMITED FIELDS TERMINATED BY ',' LINES TERMINATED BY '\n'")
+
+//Al observar en el terminal de Hive las tablas creadas desde el Shell de Spark, se puede //observar como se ha creado la base de datos hive spark y la tabla empleados.
+
+5. Crear un fichero “/home/cloudera/empleado.txt” que contenga los siguientes datos de 
+esta manera dispuestos
+
+cd /home/cloudera
+nano empleado.txt
+
+6. Aprovechando la estructura de la tabla que hemos creado antes, usando SparkSQL, 
+subid los datos del fichero “/home/cloudera/empleado.txt” a la tabla hive, usando como 
+la sintaxis de HiveQL como vimos en el curso de Hive (LOAD DATA LOCAL INPATH).
+
+sqlContext.sql("LOAD DATA LOCAL INPATH '/home/cloudera/empleado.txt' INTO TABLE hivespark.empleados")
+
+7. Ejecutad cualquier consulta en los terminales de Hive y Spark para comprobar que todo 
+funciona y se devuelven los mismos datos. En el terminal de Spark usad el comando 
+“show()” para mostrar los datos
+
+Hive -> select * from hivespark.empleados;
+Spark -> sqlContext.sql("select * from hivespark.empleados").show()
+
+
+---------------------------
+-------SPARKSQL - DF-------
+---------------------------
+
+El objetivo de este ejercicio es familiarizarnos un poco más con la API de DataFrames.
+1. Creamos un contexto SQL
+
+var ssc = new org.apache.spark.sql.SQLContext(sc)
+
+2. Importa los implicits que permiten convertir RDDs en DataFrames y Row
+
+import sqlContext.implicits._
+import org.apache.spark.sql.Row
+import org.apache.spark.sql.types.{StructType,StructField,StringType}
+
+3. Creamos una variable con la ruta al fichero “/home/cloudera/Desktop/DataSetPartidos.txt”. Será necesario copiar el dataset “DataSetPartidos.txt” al escritorio de la máquina virtual. Las líneas tienen el siguiente formato:
+
+var datos = "file:/home/BIT/data_spark/DataSetPartidos.txt"
+
+4. Leemos el contenido del archivo en una variable (con textFile)
+
+var datosdsp = sc.textFile(datos)
+
+5. Creamos una variable que contenga el esquema de los datos
+
+val esquema = "idPartido::temporada::jornada::EquipoLocal::EquipoVisitante::golesLocal::golesVisitante::fecha::timestamp"
+
+6. Generamos el esquema basado en la variable que contiene el esquema de los datos 
+que acabamos de crear
+
+val schema = StructType(esquema.split("::").map(fieldName => StructField(fieldName, StringType, true)))
+
+7. Convertimos las filas de nuestro RDD a Rows
+
+val rowRDD = datosdsp.map(_.split("::")).map(p => Row(p(0), p(1), p(2), p(3), p(4), p(5), p(6), p(7), p(8).trim))
+
+8. Aplicamos el Schema al RDD
+
+val partidosdf = sqlContext.createDataFrame(rowRDD, schema)
+
+9. Registramos el DataFrame como una Tabla
+
+partidosdf.registerTempTable("partidos")
+
+10. Ya estamos listos para hacer consultas sobre el DF con el siguiente formato
+
+sqlContext.sql("SELECT * FROM partidos")
+
+11. los resulados de las queries son DF y soportan las operaciones como los RDDs 
+normales. Las columnas en el Row de resultados son accesibles por índice o nombre de 
+campo
+
+sqlContext.sql("select * from partidos").collect().foreach(println)
+
+12. Ejercicio: ¿Cuál es el record de goles como visitante en una temporada del Oviedo?
+
+sqlContext.sql("select sum(golesVisitante) as TotalGoles, temporada from partidos where EquipoVisitante = 'Real Oviedo' group by temporada order by TotalGoles desc limit 1").show()
+
+13. ¿Quién ha estado más temporadas en 1 Division Sporting u Oviedo?
+
+sqlContext.sql("select count(distinct temporada) as NumTemporadas, EquipoLocal from partidos where EquipoLocal = 'Real Oviedo' or EquipoLocal = 'Sporting de Gijon' group by EquipoLocal order by NumTemporadas desc").show()
+
+//Ahora de manera individual
+sqlContext.sql("select count(distinct temporada) from partidos where EquipoLocal = 'Real Oviedo'").show()
+sqlContext.sql("select count(distinct temporada) from partidos where EquipoLocal = 'Sporting de Gijon'").show()
+
+//Sporting 45 temporada - Oviedo 32
+
+
+
+
+
+
+
+
+
+
