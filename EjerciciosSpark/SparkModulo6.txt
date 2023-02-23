@@ -1,0 +1,200 @@
+---------------------------
+------SPARK STREAMING------
+---------------------------
+
+El objetivo de este ejercicio es el de iniciarnos en el uso de Spark Streaming y observar sus 
+cualidades. Para ello generaremos un script en un terminal que contará las palabras que 
+introduzcamos en otra terminal a modo de streaming simulado.
+Tareas a realizar:
+
+1. Visita en la web la documentación de Spark 
+https://spark.apache.org/docs/1.5.2/streaming-programming-guide.html y 
+familiarízate con el ejercicio. El objetivo es hacer lo mismo que pone en la web en el 
+apartado “A Quick Example”
+2. Tomate un tiempo para navegar por la web y explorar todo lo que puede ofrecerte. 
+Cuando lo consideres, comienza el ejercicio:
+3. Abre un terminal nuevo y escribe el siguiente comando: “nc -lkv 4444”, que hace que 
+todo lo que escribas se envíe al puerto 4444
+4. Inicia un nuevo terminal y arranca el Shell de Spark en modo local con al menos 2 
+threads, necesarios para ejecutar este ejercicio: “spark-shell --master local[2]”
+5. Por otro lado, accede al fichero “/usr/lib/spark/conf/log4j.properties”, y edítalo para 
+poner el nivel de log a ERROR, de modo que en tu Shell puedas ver con claridad el 
+streaming de palabras contadas devuelto por tu script.
+6. Importa las clases necesarias para trabajar con Spark Streaming
+
+import org.apache.spark.streaming.StreamingContext
+import org.apache.spark.streaming.StreamingContext._
+import org.apache.spark.streaming.Seconds
+
+7. Crea un SparkContext con una duración de 5 segundos
+
+var ssc = new StreamingContext(sc, Seconds(5))
+
+8. Crea un DStream para leer texto del puerto que pusiste en el comando “nc”, 
+especificando el hostname de nuestra máquina, que es “quickstart.cloudera”
+
+var mystream = ssc.socketTextStream("localhost", 4444)
+
+9. Crea un MapReduce, como vimos en los apuntes, para contar el número de palabras 
+que aparecen en cada Stream
+
+var words = mystream.flatMap(line => line.split("\\W"))
+var wordCounts = words.map(x => (x,1)).reduceByKey((x,y) => x+y)
+
+10. Imprime por pantalla los resultados de cada batch
+
+wordCounts.print()
+
+11. Arranca el Streaming Context y llama a awaitTermination para esperar a que la tarea 
+termine
+
+ssc.start()
+ssc.awaitTermination()
+
+---------------------------
+-----SPARK STREAMING 2-----
+---------------------------
+
+El objetivo de este ejercicio es seguir familiarizándonos con el concepto de DStream. Para ello vamos a simular accesos a web (los de la carpeta weblogs) y vamos a trabajar con ellos como si estuvieran ocurriendo en tiempo real, creando una aplicación Spark Streaming que capture aquellos que cumplan una característica específica que indicaremos más abajo.
+Para ayudarnos de ello, se ha creado un script en Python que podéis encontrar en la carpeta de ejercicios de Spark. La primera tarea es copiar este script en la ruta 
+“/home/BIT/examples/streamtest.py” (o en otra que tú elijas) que lo que hace es leer los ficheros contenidos en weblogs y simular un streaming de ellos (parecido a lo que hicimos con el comando “nc” en el ejercicio pasado, pero de manera automática y sobre un conjunto de 
+ficheros) 
+Tareas a realizar
+
+1. Abre un nuevo terminal, sitúate en la ruta “/home/BIT/examples” y ejecuta el script 
+Python mencionado arriba de la siguiente manera
+
+python streamtest.py quickstart.cloudera 4444 5 /home/BIT/data/weblogs/*
+
+2. Copia el fichero “StreamingLogs.scalaspark” situado en la carpeta de ejercicios de Spark 
+en “/home/BIT/stubs/StreamingLogs.scalaspark” y familiarízate con el contenido. El 
+objetivo es ejecutar en el Shell cada una de las líneas que contiene más las que vamos a 
+programar para este ejercicio.
+3. Abre un nuevo terminal y arranca el Shell de Spark con al menos dos threads, como en 
+el caso anterior (tal y como pone en el fichero). A continuación ejecuta los imports y 
+crea un nuevo StreamingContext con intervalos de un segundo.
+
+Spark-shell –master local[2]
+import org.apache.spark.streaming.StreamingContext
+import org.apache.spark.streaming.StreamingContext._
+import org.apache.spark.streaming.Seconds
+var ssc=new StreamingContext(sc, Seconds(5))
+
+4. Crea un DStream de logs cuyo host es “quickstart.cloudera” (también podéis usar 
+“localhost”) y cuyo puerto es “4444” (lo mismo que hemos indicado por parámetro al 
+script Python anterior)
+
+var dstream = ssc.socketTextStream("quickstart.cloudera", 4444)
+
+5. Filtra las líneas del Stream que contengan la cadena de caracteres “KBDOC”
+
+val lineas = dstream.filter(x => x.contains("KBDOC"))
+
+6. Para cada RDD, imprime el número de líneas que contienen la cadena de caracteres 
+indicada. Para ello, puedes usar la función “foreachRDD()”.
+
+7. Guarda el resultado del filtrado en un fichero de texto en sistema de archivos local 
+(créate una ruta en /home/cloudera/…)de la máquina virtual, no en hdfs y revisa el 
+resultado al acabar el ejercicio
+
+8. Para arrancar el ejercicio ejecuta los comandos start() y awaitTermination()
+
+-------------------------------------------------------------
+//Cuenta el numero de palabras que contienen KBDOC
+
+import org.apache.spark.streaming.StreamingContext
+import org.apache.spark.streaming.StreamingContext._
+import org.apache.spark.streaming.Seconds
+
+var ssc = new StreamingContext(sc, Seconds(5))
+var dstream = ssc.socketTextStream("quickstart.cloudera", 4444)
+var lineas = dstream.filter(x => x.contains("KBDOC"))
+lineas.foreachRDD { rdd =>
+  val count = rdd.filter(x => x.contains("KBDOC")).count()
+  println(s"Líneas con KBDOC: $count")
+}
+lineas.saveAsTextFiles("/home/cloudera/prueba.txt")
+ssc.start()
+ssc.awaitTermination()
+
+-------------------------------------------------------------
+
+import org.apache.spark.streaming.StreamingContext
+import org.apache.spark.streaming.StreamingContext._
+import org.apache.spark.streaming.Seconds
+
+val ssc = new StreamingContext(sc, Seconds(5))
+val dstream = ssc.socketTextStream("quickstart.cloudera", 4444)
+val lineas = dstream.filter(x => x.contains("KBDOC"))
+
+lineas.foreachRDD { rdd =>
+  val filtered = rdd.filter(x => x.contains("KBDOC"))
+  filtered.saveAsTextFile("/home/cloudera/prueba/")
+}
+
+ssc.start()
+ssc.awaitTermination()
+
+-------------------------------------------------------------
+
+//Al ver que no guardaba bien en documento, lo presente por la consola de spark con el print
+
+import org.apache.spark.streaming.StreamingContext
+import org.apache.spark.streaming.StreamingContext._
+import org.apache.spark.streaming.Seconds
+
+val ssc = new StreamingContext(sc, Seconds(5))
+val dstream = ssc.socketTextStream("quickstart.cloudera", 4444)
+val lineas = dstream.filter(x => x.contains("KBDOC"))
+
+lineas.foreachRDD { rdd =>
+  val filtered = rdd.filter(x => x.contains("KBDOC"))
+  val count = filtered.count()
+  println(s"Líneas con la palabra KBDOC: $count")
+}
+
+ssc.start()
+ssc.awaitTermination()
+
+-----------------------------
+-------------EXTRA-----------
+-----------------------------
+
+9. Si te ha sobrado tiempo, prueba a ampliar el ejercicio de la siguiente manera
+10. Cada dos segundos, muestra el número de peticiones de KBDOC tomando ventanas de 
+10 segundos. Ayúdate de la función “countByWindow” y recuerda el uso del checkpoint 
+necesario para utilizar funciones de ventana. La idea es replicar el código hecho hasta 
+ahora y añadir las líneas que hacen falta para cumplir con el objetivo marcado en este 
+punto.
+
+import org.apache.spark.streaming.StreamingContext
+import org.apache.spark.streaming.StreamingContext._
+import org.apache.spark.streaming.Seconds
+
+val ssc = new StreamingContext(sc, Seconds(2))  // Cambiamos el tiempo de la ventana a 2 //segundos, para que cuadre con el CountByWindow
+// Configurar el directorio de checkpoint
+ssc.checkpoint("/home/cloudera/Desktop/ejercicios")
+
+val dstream = ssc.socketTextStream("quickstart.cloudera", 4444)
+
+val lineas = dstream.filter(x => x.contains("KBDOC"))
+
+// Contar el número de líneas que contienen la palabra "KBDOC" en cada RDD
+lineas.foreachRDD { rdd =>
+  val filtered = rdd.filter(x => x.contains("KBDOC"))
+  val count = filtered.count()
+  println(s"Líneas con la palabra KBDOC: $count")
+}
+
+// Contar el número de líneas que contienen la palabra "KBDOC" en ventanas de 10 segundos cada 2 segundos
+val countWindowed = lineas.countByWindow(Seconds(10), Seconds(2))
+countWindowed.print()
+
+ssc.start()
+ssc.awaitTermination()
+
+
+
+
+
+
