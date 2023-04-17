@@ -1,0 +1,26 @@
+INSTALACIÓN APACHE KAFKA EN WINDOWS
+
+Primero de todo debemos tener instalado una version JDK de Java (no es válido JRE), ya que vamos a hacer uso del servidor de Java. Esto podemos descargarlo desde el siguiente link de descarga de la página web de Oracle: https://www.oracle.com/java/technologies/downloads/#java8-windows
+
+Una vez tengamos Java ya instalado, lo siguiente va a ser instalar Apache Kafka. Para ello iremos a la página web de kafka (https://kafka.apache.org/downloads) y seleccionaremos la version que más nos guste en función a nuestras preferencias. En mi caso he seleccionado la versión 2.13 ya que es compatible con Java 8.
+Se descargará un archivo comprimido, el cual deberemos renombrar (esto es por comodidad) a "kafka" y colocar en una ruta cercana al disco (en mi caso lo dejé dentro del disco local C). Esto facilitará el acceso a sus archivos a traves de las rutas.
+
+Ahora deberemos modificar los siguientes ficheros:
+
+-En primer lugar el archivo "server.properties" dentro de la carpeta "config", donde modificaremos la dirección de los logs (linea 62) a "c:/kafka/kafka-logs"
+
+-El siguiente fichero que modificaremos será el llamado "zookeeper.properties", donde modificaremos la linea 16 dataDir, colocando de nuevo la ruta de nuestra máquina: "c:/kafka/zookeeper-data"
+
+Guardaremos los archivos y abriremos dos terminales desde la carpeta kafka.
+
+-En una primera terminal abriremos zookeper, para ello deberemos ejecutar el siguiente comando: ".\bin\windows\zookeper-server-start.bat .\config\zookeeper.properties". Entonces se nos abrirá zookeeper y minimizaremos esta consola.
+
+-En la otra consola abriremos el servidor de kafka, ejecutando el siguiente comando: ".\bin\windows\kafka-server-start.bat .\config\server.properties". Y se abrirá el servidor de kafka, por tanto, deberemos minimizar también esa ventana de la consola.
+
+Ahora tenemos ya nuestro kafka en funcionamiento, pero vamos a lanzar un productor y un consumidor para poder transmitir información entre ambos. Para realizar esto abriremos dos nuevas terminales, en este caso desde la carpeta kafka/bin/windows.
+
+-En el primer terminal vamos a crear primero de todo un topics con el comando: "kafka-topics.bat --create --bootstrap-server localhost:9092 --topic test". Una vez tengamos creado este topic se mostrará un mensaje "Created topic test(nombre del topic que le hayas asignado)". Ahora lanzaremos el productor, que va a ser el encargado de mandar datos al consumidor, para ello ejecutamos el comando: "kafka-console-producer.bat --broker-list localhost:9092 --topic test" y se nos quedará el símbolo ">" en una nueva línea.
+
+-En el otro terminal vamos a lanzar el consumidor, que va a ser el encargado de recibir los datos del productor. Para ello vamos a ejecutar el comando: "kafka-console-consumer.bat --topic test --bootstrap-server localhost:9092 --from-beginning", y se quedará la pantalla en espera de recibir datos.
+
+Para comprobar su funcionamiento, podemos pasar una cadena al productor y ver si esta se muestra en el consumidor, en caso de ser así, tendremos nuestro Apache Kafka configurado correctamente.
